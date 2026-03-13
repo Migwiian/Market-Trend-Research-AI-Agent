@@ -1,0 +1,18 @@
+{
+  "Growth": {
+    "definition": "Market expansion signals, demand growth, win-loss signals, and positioning opportunities.",
+    "audiences": ["Sales", "Product", "Strategy"]
+  },
+  "Risk": {
+    "definition": "Competitive threats, regulatory or technical risks, and downside scenarios.",
+    "audiences": ["Corp-Dev", "Strategy", "Legal"]
+  },
+  "Enterprise": {
+    "definition": "Security, compliance, procurement blockers, and integration complexity.",
+    "audiences": ["Sales", "CS", "Strategy"]
+  },
+  "Mid-Market": {
+    "definition": "Pricing sensitivity, onboarding speed, and ROI payback signals.",
+    "audiences": ["Sales", "Product"]
+  }
+}

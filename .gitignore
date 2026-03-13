@@ -1,0 +1,21 @@
+# Do-not-publish portfolio and validation artifacts
+Portfolio/
+
+# Secrets and env
+.env
+.env.*
+*.env
+
+# Data and outputs
+/data/
+/data/**
+*.db
+*.sqlite
+*.log
+
+# Documents and binaries
+*.pdf
+*.docx
+
+# Planning / validation artifacts
+Validation_Brief_Market_Trend_Research_Desk.md

@@ -1,0 +1,15 @@
+[project]
+name = "market-trend-research-desk"
+version = "0.1.0"
+description = "Evidence-first market intelligence desk with RAG, audit, and typed briefs"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+mtrd = "mtrd.cli:app"
