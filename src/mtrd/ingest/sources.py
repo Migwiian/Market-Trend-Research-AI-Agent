@@ -12,6 +12,7 @@ import feedparser
 from bs4 import BeautifulSoup
 
 from mtrd.models import SourceMeta
+from storage.models import SourceSnapshot
 
 
 @dataclass
@@ -123,3 +124,19 @@ def _parse_dt(raw: Optional[str]) -> Optional[datetime]:
         except Exception:
             continue
     return None
+
+
+def to_snapshot(doc: RawDocument, stale_after_days: int = 30) -> SourceSnapshot:
+    meta = doc.meta
+    snapshot_id = f"{meta.source_type}:{meta.content_hash[:12]}"
+    return SourceSnapshot(
+        snapshot_id=snapshot_id,
+        content_hash=meta.content_hash,
+        content_text=doc.text,
+        metadata=meta.model_dump(),
+        retrieved_at=meta.collected_at,
+        source_type=meta.source_type,
+        url=meta.url,
+        stale_after_days=stale_after_days,
+        embedding_id=snapshot_id,
+    )

@@ -8,7 +8,7 @@ from mtrd.config import AppConfig
 def get_embed_model(config: AppConfig):
     backend = config.embeddings.backend
     if backend == "mock":
-        from llama_index.core.embeddings.mock import MockEmbedding
+        from llama_index.core.embeddings.mock_embed_model import MockEmbedding
 
         return MockEmbedding(embed_dim=384)
     if backend == "huggingface":

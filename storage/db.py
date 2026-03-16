@@ -26,12 +26,46 @@ def init_db(conn: sqlite3.Connection) -> None:
             retrieved_at TEXT NOT NULL,
             source_type TEXT NOT NULL,
             url TEXT,
-            stale_after_days INTEGER NOT NULL
+            stale_after_days INTEGER NOT NULL,
+            embedding_id TEXT
+        );
+        """
+    )
+    conn.execute("PRAGMA table_info(snapshots);")
+    try:
+        conn.execute("ALTER TABLE snapshots ADD COLUMN embedding_id TEXT;")
+    except sqlite3.OperationalError:
+        pass
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS briefs (
+            brief_id TEXT PRIMARY KEY,
+            topic TEXT NOT NULL,
+            audience TEXT NOT NULL,
+            lens TEXT NOT NULL,
+            generated_at TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            brief_json TEXT NOT NULL,
+            citations_json TEXT NOT NULL
+        );
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS audit_log (
+            audit_id TEXT PRIMARY KEY,
+            action TEXT NOT NULL,
+            user TEXT,
+            timestamp TEXT NOT NULL,
+            details_json TEXT NOT NULL
         );
         """
     )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_snapshots_hash ON snapshots(content_hash);"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_briefs_topic ON briefs(topic);"
     )
     conn.commit()
 
@@ -41,8 +75,8 @@ def upsert_snapshot(conn: sqlite3.Connection, snap: SourceSnapshot) -> None:
         """
         INSERT INTO snapshots (
             snapshot_id, content_hash, content_text, metadata_json, retrieved_at,
-            source_type, url, stale_after_days
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            source_type, url, stale_after_days, embedding_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(snapshot_id) DO UPDATE SET
             content_hash=excluded.content_hash,
             content_text=excluded.content_text,
@@ -50,17 +84,19 @@ def upsert_snapshot(conn: sqlite3.Connection, snap: SourceSnapshot) -> None:
             retrieved_at=excluded.retrieved_at,
             source_type=excluded.source_type,
             url=excluded.url,
-            stale_after_days=excluded.stale_after_days;
+            stale_after_days=excluded.stale_after_days,
+            embedding_id=excluded.embedding_id;
         """,
         (
             snap.snapshot_id,
             snap.content_hash,
             snap.content_text,
-            json.dumps(snap.metadata),
+            json.dumps(snap.metadata, default=str),
             snap.retrieved_at.isoformat(),
             snap.source_type,
             snap.url,
             snap.stale_after_days,
+            snap.embedding_id,
         ),
     )
     conn.commit()
@@ -68,7 +104,7 @@ def upsert_snapshot(conn: sqlite3.Connection, snap: SourceSnapshot) -> None:
 
 def get_snapshot(conn: sqlite3.Connection, snapshot_id: str) -> Optional[SourceSnapshot]:
     cur = conn.execute(
-        "SELECT snapshot_id, content_hash, content_text, metadata_json, retrieved_at, source_type, url, stale_after_days "
+        "SELECT snapshot_id, content_hash, content_text, metadata_json, retrieved_at, source_type, url, stale_after_days, embedding_id "
         "FROM snapshots WHERE snapshot_id=?",
         (snapshot_id,),
     )
@@ -80,15 +116,104 @@ def get_snapshot(conn: sqlite3.Connection, snapshot_id: str) -> Optional[SourceS
 
 def list_snapshots(conn: sqlite3.Connection, limit: int = 50) -> List[SourceSnapshot]:
     cur = conn.execute(
-        "SELECT snapshot_id, content_hash, content_text, metadata_json, retrieved_at, source_type, url, stale_after_days "
+        "SELECT snapshot_id, content_hash, content_text, metadata_json, retrieved_at, source_type, url, stale_after_days, embedding_id "
         "FROM snapshots ORDER BY retrieved_at DESC LIMIT ?",
         (limit,),
     )
     return [_row_to_snapshot(row) for row in cur.fetchall()]
 
 
+def list_snapshots_all(conn: sqlite3.Connection) -> List[SourceSnapshot]:
+    cur = conn.execute(
+        "SELECT snapshot_id, content_hash, content_text, metadata_json, retrieved_at, source_type, url, stale_after_days, embedding_id "
+        "FROM snapshots ORDER BY retrieved_at DESC"
+    )
+    return [_row_to_snapshot(row) for row in cur.fetchall()]
+
+
+def insert_brief(
+    conn: sqlite3.Connection,
+    brief_id: str,
+    topic: str,
+    audience: str,
+    lens: str,
+    generated_at: str,
+    version: int,
+    brief_json: str,
+    citations_json: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO briefs (
+            brief_id, topic, audience, lens, generated_at, version, brief_json, citations_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+        """,
+        (brief_id, topic, audience, lens, generated_at, version, brief_json, citations_json),
+    )
+    conn.commit()
+
+
+def get_latest_brief_version(conn: sqlite3.Connection, topic: str, lens: str) -> int:
+    cur = conn.execute(
+        "SELECT MAX(version) FROM briefs WHERE topic=? AND lens=?",
+        (topic, lens),
+    )
+    row = cur.fetchone()
+    if not row or row[0] is None:
+        return 0
+    return int(row[0])
+
+
+def list_briefs(conn: sqlite3.Connection, limit: int = 50):
+    cur = conn.execute(
+        "SELECT brief_id, topic, lens, generated_at, version FROM briefs "
+        "ORDER BY generated_at DESC LIMIT ?",
+        (limit,),
+    )
+    return cur.fetchall()
+
+
+def get_brief_json(conn: sqlite3.Connection, brief_id: str) -> Optional[str]:
+    cur = conn.execute(
+        "SELECT brief_json FROM briefs WHERE brief_id=?",
+        (brief_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    return row[0]
+
+
+def insert_audit_log(
+    conn: sqlite3.Connection,
+    audit_id: str,
+    action: str,
+    user: str | None,
+    timestamp: str,
+    details_json: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO audit_log (audit_id, action, user, timestamp, details_json)
+        VALUES (?, ?, ?, ?, ?);
+        """,
+        (audit_id, action, user, timestamp, details_json),
+    )
+    conn.commit()
+
+
 def _row_to_snapshot(row) -> SourceSnapshot:
-    snapshot_id, content_hash, content_text, metadata_json, retrieved_at, source_type, url, stale_after_days = row
+    (
+        snapshot_id,
+        content_hash,
+        content_text,
+        metadata_json,
+        retrieved_at,
+        source_type,
+        url,
+        stale_after_days,
+        embedding_id,
+    ) = row
     return SourceSnapshot(
         snapshot_id=snapshot_id,
         content_hash=content_hash,
@@ -98,4 +223,5 @@ def _row_to_snapshot(row) -> SourceSnapshot:
         source_type=source_type,
         url=url,
         stale_after_days=int(stale_after_days),
+        embedding_id=embedding_id,
     )

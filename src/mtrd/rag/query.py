@@ -55,6 +55,100 @@ def _extract_json_block(raw: str) -> Optional[str]:
     return raw[start : end + 1]
 
 
+def _extract_top_evidence(context: str, max_items: int = 3) -> List[str]:
+    lines = [line.strip() for line in context.splitlines() if line.strip()]
+    quotes: List[str] = []
+    for line in lines:
+        if len(quotes) >= max_items:
+            break
+        if len(line) > 20:
+            quotes.append(line[:240])
+    return quotes
+
+
+def _staleness_days(meta: SourceMeta) -> int | None:
+    if not meta:
+        return None
+    base = meta.published_at or meta.collected_at
+    if not base:
+        return None
+    delta = datetime.utcnow() - base.replace(tzinfo=None)
+    return max(0, delta.days)
+
+
+def _enforce_brief_constraints(
+    brief: MarketBrief,
+    topic: str,
+    audience: str,
+    lens: str,
+    sources: List[SourceMeta],
+    context: str,
+) -> MarketBrief:
+    brief.topic = brief.topic or topic
+    brief.audience = brief.audience or audience
+    brief.lens = brief.lens or lens
+
+    if not brief.executive_summary:
+        brief.executive_summary = ["Evidence-first brief generated from available sources."]
+    if len(brief.executive_summary) > 3:
+        brief.executive_summary = brief.executive_summary[:3]
+
+    if not brief.sections:
+        brief.sections = [
+            BriefSection(
+                heading="Top Evidence",
+                bullets=_extract_top_evidence(context) or ["No sources available"],
+            )
+        ]
+    else:
+        has_top = any(sec.heading.strip().lower() == "top evidence" for sec in brief.sections)
+        if not has_top:
+            brief.sections.append(
+                BriefSection(
+                    heading="Top Evidence",
+                    bullets=_extract_top_evidence(context) or ["No sources available"],
+                )
+            )
+
+    source_map = {s.source_id: s for s in sources}
+    if not brief.signals:
+        if sources:
+            brief.signals = [
+                EvidenceItem(
+                    claim="Extracted evidence (fallback mode)",
+                    source_ids=[sources[0].source_id],
+                    confidence=0.1,
+                    staleness_days=_staleness_days(sources[0]),
+                )
+            ]
+        else:
+            brief.signals = [
+                EvidenceItem(
+                    claim="No evidence extracted (fallback mode)",
+                    source_ids=["none"],
+                    confidence=0.0,
+                    staleness_days=None,
+                )
+            ]
+    else:
+        for sig in brief.signals:
+            if sig.staleness_days is None and sig.source_ids:
+                meta = source_map.get(sig.source_ids[0])
+                if meta:
+                    sig.staleness_days = _staleness_days(meta)
+
+    if not brief.citations:
+        brief.citations = sources
+
+    if not brief.assumptions:
+        brief.assumptions = ["No explicit assumptions provided; verify sources."]
+
+    if not brief.decision_summary:
+        brief.decision_summary = "Manual completion required."
+
+    return brief
+
+
 def _extractive_fallback(
     topic: str, audience: str, lens: str, sources: List[SourceMeta], context: str
 ) -> MarketBrief:
@@ -69,11 +163,13 @@ def _extractive_fallback(
     signals: List[EvidenceItem] = []
     for idx, quote in enumerate(quotes):
         source_id = sources[idx].source_id if idx < len(sources) else "none"
+        staleness = _staleness_days(sources[idx]) if idx < len(sources) else None
         signals.append(
             EvidenceItem(
                 claim="Extracted evidence (fallback mode)",
                 source_ids=[source_id],
                 confidence=0.1,
+                staleness_days=staleness,
             )
         )
     if not signals:
@@ -82,6 +178,7 @@ def _extractive_fallback(
                 claim="No evidence extracted (fallback mode)",
                 source_ids=[sources[0].source_id] if sources else ["none"],
                 confidence=0.0,
+                staleness_days=_staleness_days(sources[0]) if sources else None,
             )
         ]
     sections = [
@@ -106,7 +203,13 @@ def _extractive_fallback(
     )
 
 
-def generate_brief(topic: str, audience: str, lens: str, config: AppConfig) -> MarketBrief:
+def generate_brief(
+    topic: str,
+    audience: str,
+    lens: str,
+    config: AppConfig,
+    tier: str | None = None,
+) -> MarketBrief:
     index = load_index(config)
     retriever = index.as_retriever(similarity_top_k=config.top_k)
     nodes = retriever.retrieve(topic)
@@ -115,8 +218,10 @@ def generate_brief(topic: str, audience: str, lens: str, config: AppConfig) -> M
     sources = _sources_from_nodes(nodes)
 
     lens_def = get_lens_definition(lens)
+    selected_tier = (tier or config.llm.default_tier or "fast").lower()
+    model_name = config.llm.fast_model if selected_tier == "fast" else config.llm.standard_model
     model = OpenAIChatModel(
-        model_name="local",
+        model_name=model_name,
         base_url=config.llm.openai_base_url,
         api_key=config.llm.openai_api_key,
         provider="openai-chat",
@@ -144,7 +249,8 @@ def generate_brief(topic: str, audience: str, lens: str, config: AppConfig) -> M
     }
 
     if config.extractive_only:
-        return _extractive_fallback(topic, audience, lens, sources, context)
+        brief = _extractive_fallback(topic, audience, lens, sources, context)
+        return _enforce_brief_constraints(brief, topic, audience, lens, sources, context)
 
     try:
         if config.llm.no_tools:
@@ -161,6 +267,7 @@ def generate_brief(topic: str, audience: str, lens: str, config: AppConfig) -> M
             agent = Agent(model=model, output_type=MarketBrief, system_prompt=system_prompt)
             brief = agent.run_sync(json.dumps(user_prompt)).output
         brief.citations = sources
-        return brief
+        return _enforce_brief_constraints(brief, topic, audience, lens, sources, context)
     except Exception:
-        return _extractive_fallback(topic, audience, lens, sources, context)
+        brief = _extractive_fallback(topic, audience, lens, sources, context)
+        return _enforce_brief_constraints(brief, topic, audience, lens, sources, context)

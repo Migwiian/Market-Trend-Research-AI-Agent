@@ -5,6 +5,7 @@ Portfolio/
 .env
 .env.*
 *.env
+.venv/
 
 # Data and outputs
 /data/
@@ -16,6 +17,10 @@ Portfolio/
 # Documents and binaries
 *.pdf
 *.docx
+
+# Python cache
+__pycache__/
+*.pyc
 
 # Planning / validation artifacts
 Validation_Brief_Market_Trend_Research_Desk.md

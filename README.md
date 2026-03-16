@@ -1,38 +1,35 @@
-# Market-Trend Research Desk (MTRD)
-**Multi-Agent Intelligence System for Automated Market Synthesis**
+# A Multi-Agent Evidence Engine for Market Intelligence
+**AI research pipeline for audit‑ready briefs**
 
-## Executive Summary
-MTRD transforms fragmented industry data into audit-ready competitive briefs through a coordinated multi-agent workflow. Unlike standard RAG applications, this system prioritizes **data lineage** and **deterministic validation** to ensure every insight is traceable to a verified source.
+## Problem
+Market teams need fast competitive briefs, but source data is messy and hard to trust. Most tools return fluent summaries without a reliable audit trail.
 
-* **Business Question:** How can market teams produce high-velocity, evidence-first briefs without sacrificing auditability?
-* **Solution:** A specialized agent swarm (Ingest, Validate, Synthesize, Critique, Audit) that enforces structural integrity at every stage of the intelligence pipeline.
-* **Outcome:** Strategic reports with a 100% verifiable lineage trail stored in a high-concurrency SQLite backend.
+## Action
+Build a local-first pipeline that ingests raw documents, preserves lineage, retrieves the most relevant evidence, and generates a structured brief that always links back to sources.
 
-## Multi-Agent Orchestration
-The system moves beyond simple prompting by assigning discrete responsibilities to specialized agents:
+## Solution
+MTRD turns fragmented documents into audit-ready briefs with citations, bounded context, and repeatable outputs.
 
-1. **Ingestion Agent:** Extracts raw data from .txt and .md sources using Pydantic for strict schema enforcement.
-2. **Validation Agent:** Performs quality gates on metadata completeness and structural consistency before storage.
-3. **Synthesis Agent:** Executes a tiered strategy—**Brief-Lite** for rapid extraction and **Extractive Fallback** for complex datasets.
-4. **Critique Agent:** Acting as a "human-in-the-loop" proxy, it flags weak evidence and enforces direct alignment with source text.
-5. **Audit Agent:** Manages the permanent record, mapping every claim to content hashes and source IDs in the SQLite snapshot store.
-
-## Architecture and Production Readiness
-* **Storage:** SQLite (WAL mode) for robust, high-concurrency snapshotting and provenance tracking.
-* **Inference Strategy:** Optimized for local-first execution (Ollama) to maintain data privacy, with a modular driver ready for OpenAI/Anthropic API integration as project budgets scale.
-* **Reliability:** Comprehensive unit and integration testing via pytest, covering the full ingestion-to-audit lifecycle.
+## What It Includes
+* **Ingestion:** txt/md/pdf, RSS, and web sources.
+* **Snapshot Store:** SQLite with content hashing; JSON/Markdown are exports only.
+* **Indexing + Retrieval:** Chroma + LlamaIndex, top‑k evidence with preserved metadata.
+* **Brief Generation:** Extractive‑only by default; optional structured synthesis by tier (fast vs standard).
+* **Governance:** Audit log, brief versioning, and diffing.
+* **UI:** Streamlit for end‑to‑end demo flow.
 
 ## Run (Local)
 ```bash
 uv venv
 . .venv/bin/activate
 uv pip install -r requirements.txt
-python mtrd_cli.py ingest-files --path ./data/sources --db ./data/snapshots.db
+PYTHONPATH=src python -m mtrd.cli ingest-files-cmd --path ./data/sources --db ./data/snapshots.db
+PYTHONPATH=src python -m mtrd.cli build-index-cmd --db ./data/snapshots.db --rebuild
+PYTHONPATH=src python -m mtrd.cli brief --topic "Mid-market CRM" --audience "Executive" --lens "Growth"
+streamlit run streamlit_app.py
 pytest -q
 ```
-## Roadmap
-* **Vector Retrieval: Integrating ChromaDB/LlamaIndex for semantic search across 10,000+ document libraries.
-
-* **Stakeholder Interface: Developing a Streamlit dashboard to transition from CLI to executive-facing visuals.
-
-* **Temporal Analysis: Automated "Change Reports" to track and diff market shifts over time.
+## Current Progress
+* **Vector Retrieval:** Scale Chroma/LlamaIndex across larger document libraries.
+* **Stakeholder Interface:** Expand the dashboard with filters and report sharing.
+* **Temporal Analysis:** Automated change reports to track market shifts over time.

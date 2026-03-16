@@ -15,6 +15,7 @@ class SourceSnapshot:
     source_type: str
     url: Optional[str]
     stale_after_days: int = 30
+    embedding_id: Optional[str] = None
 
     @staticmethod
     def now_utc() -> datetime:
