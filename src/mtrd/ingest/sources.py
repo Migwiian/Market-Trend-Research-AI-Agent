@@ -12,6 +12,7 @@ import feedparser
 from bs4 import BeautifulSoup
 
 from mtrd.models import SourceMeta
+from mtrd.exceptions import IngestError
 from storage.models import SourceSnapshot
 
 
@@ -37,15 +38,20 @@ def _clean_text(text: str) -> str:
 def load_file(path: Path, source_type: str = "file") -> RawDocument:
     text = ""
     if path.suffix.lower() in {".txt", ".md"}:
-        text = path.read_text(encoding="utf-8", errors="ignore")
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except (FileNotFoundError, PermissionError) as exc:
+            raise IngestError(f"System couldn't access source file: {path}") from exc
     elif path.suffix.lower() == ".pdf":
         try:
             from pypdf import PdfReader
 
             reader = PdfReader(str(path))
             text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except (FileNotFoundError, PermissionError) as exc:
+            raise IngestError(f"System couldn't access source file: {path}") from exc
         except Exception as exc:
-            raise RuntimeError(f"PDF read failed: {path}") from exc
+            raise IngestError(f"PDF parsing failed unexpectedly: {path}") from exc
     else:
         raise ValueError(f"Unsupported file type: {path}")
 
@@ -95,9 +101,12 @@ def ingest_rss(feed_urls: Iterable[str]) -> List[RawDocument]:
 def ingest_web(urls: Iterable[str]) -> List[RawDocument]:
     docs: List[RawDocument] = []
     for url in urls:
-        resp = requests.get(url, timeout=20)
-        resp.raise_for_status()
-        html = resp.text
+        try:
+            resp = requests.get(url, timeout=20)
+            resp.raise_for_status()
+            html = resp.text
+        except requests.RequestException as exc:
+            raise IngestError(f"Web source fetch failed: {url}") from exc
         soup = BeautifulSoup(html, "html.parser")
         text = _clean_text(soup.get_text(" "))
         if not text:
