@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 
 from mtrd.models import SourceMeta
 from mtrd.exceptions import IngestError
-from storage.models import SourceSnapshot
+from mtrd.storage.models import SourceSnapshot
 
 
 @dataclass

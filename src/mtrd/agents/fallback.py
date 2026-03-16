@@ -5,7 +5,7 @@ from typing import List
 
 import re
 
-from synthesis.models import Brief, BriefLite, BriefSection, Citation, EvidenceItem
+from mtrd.agents.models import Brief, BriefLite, BriefSection, Citation, EvidenceItem
 
 
 def _extract_quotes(context: str, max_items: int = 2) -> list[str]:

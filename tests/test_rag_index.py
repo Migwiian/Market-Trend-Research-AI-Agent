@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from storage.db import connect, init_db, upsert_snapshot
-from storage.models import SourceSnapshot
+from mtrd.storage.db import connect, init_db, upsert_snapshot
+from mtrd.storage.models import SourceSnapshot
 
 
 def _make_snapshot(snapshot_id: str, text: str) -> SourceSnapshot:

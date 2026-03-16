@@ -8,10 +8,10 @@ from pydantic_ai import Agent
 
 import os
 
-from synthesis.client import LLMConfig, build_model
-from synthesis.fallback import extractive_fallback
-from synthesis.models import Brief, BriefLite, Citation
-from synthesis.prompts import SYSTEM_PROMPT, user_prompt
+from mtrd.agents.client import LLMConfig, build_model
+from mtrd.agents.fallback import extractive_fallback
+from mtrd.agents.models import Brief, BriefLite, Citation
+from mtrd.agents.prompts import SYSTEM_PROMPT, user_prompt
 
 
 LLMCall = Callable[[str, str], str]

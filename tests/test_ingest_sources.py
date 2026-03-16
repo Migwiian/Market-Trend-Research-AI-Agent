@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ingestion.sources import ingest_files, to_snapshot
+from mtrd.ingest.sources import ingest_files, to_snapshot
 
 
 def test_ingest_files(tmp_path: Path):

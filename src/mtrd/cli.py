@@ -15,7 +15,7 @@ from mtrd.config import AppConfig, BRIEF_DIR, ensure_dirs
 from mtrd.ingest.sources import ingest_files, ingest_rss, ingest_web, to_snapshot
 from mtrd.rag.index import build_index_from_db, load_index
 from mtrd.rag.query import generate_brief
-from storage.db import (
+from mtrd.storage.db import (
     connect,
     get_latest_brief_version,
     get_brief_json,

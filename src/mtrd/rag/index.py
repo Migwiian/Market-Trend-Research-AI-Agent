@@ -14,7 +14,7 @@ from mtrd.config import CHROMA_DIR, AppConfig
 from mtrd.ingest.loader import snapshots_to_llama_documents, to_llama_documents
 from mtrd.ingest.sources import RawDocument
 from mtrd.rag.runtime import get_embed_model
-from storage.db import connect, init_db, list_snapshots_all
+from mtrd.storage.db import connect, init_db, list_snapshots_all
 
 
 def _get_chroma_dir(override: Path | None) -> Path:

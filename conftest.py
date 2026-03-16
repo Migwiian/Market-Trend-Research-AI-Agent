@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from synthesis.models import Citation
+from mtrd.agents.models import Citation
 
 
 @pytest.fixture()

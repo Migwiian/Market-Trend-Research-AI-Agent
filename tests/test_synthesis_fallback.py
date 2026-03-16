@@ -1,4 +1,4 @@
-from synthesis.engine import generate_brief
+from mtrd.agents.engine import generate_brief
 
 
 def test_fallback_on_exception(sample_context, sample_citations):

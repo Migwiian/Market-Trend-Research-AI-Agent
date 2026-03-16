@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from storage.db import connect, init_db, upsert_snapshot, get_snapshot
-from storage.models import SourceSnapshot
+from mtrd.storage.db import connect, init_db, upsert_snapshot, get_snapshot
+from mtrd.storage.models import SourceSnapshot
 
 
 def test_upsert_and_get_snapshot(tmp_path: Path):

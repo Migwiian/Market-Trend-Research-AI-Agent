@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from storage.models import SourceSnapshot
+from mtrd.storage.models import SourceSnapshot
 
 
 def connect(db_path: Path) -> sqlite3.Connection:

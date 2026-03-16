@@ -5,7 +5,7 @@ from typing import Iterable, List
 from llama_index.core import Document
 
 from mtrd.ingest.sources import RawDocument
-from storage.models import SourceSnapshot
+from mtrd.storage.models import SourceSnapshot
 
 
 def to_llama_documents(docs: Iterable[RawDocument]) -> List[Document]:

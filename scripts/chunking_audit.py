@@ -8,7 +8,7 @@ from llama_index.core import Settings, VectorStoreIndex
 
 from mtrd.config import AppConfig
 from mtrd.ingest.loader import snapshots_to_llama_documents
-from storage.db import connect, init_db, list_snapshots_all
+from mtrd.storage.db import connect, init_db, list_snapshots_all
 
 
 def main(db_path: Path, sample_size: int = 5) -> None:

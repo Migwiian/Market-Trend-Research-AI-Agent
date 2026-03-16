@@ -6,10 +6,10 @@ from datetime import datetime
 import pytest
 from pydantic_ai import Agent
 
-from synthesis.client import LLMConfig, build_model
-from synthesis.engine import generate_brief
-from synthesis.models import Brief
-from synthesis.prompts import SYSTEM_PROMPT, user_prompt
+from mtrd.agents.client import LLMConfig, build_model
+from mtrd.agents.engine import generate_brief
+from mtrd.agents.models import Brief
+from mtrd.agents.prompts import SYSTEM_PROMPT, user_prompt
 
 
 def test_generate_brief_with_stub(sample_context, sample_citations):

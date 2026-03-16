@@ -20,7 +20,7 @@ from mtrd.audit.log import write_audit_log  # noqa: E402
 from mtrd.ingest.sources import ingest_files, to_snapshot  # noqa: E402
 from mtrd.rag.index import build_index_from_db  # noqa: E402
 from mtrd.rag.query import generate_brief  # noqa: E402
-from storage.db import (  # noqa: E402
+from mtrd.storage.db import (  # noqa: E402
     connect,
     get_latest_brief_version,
     get_brief_json,

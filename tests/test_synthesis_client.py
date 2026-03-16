@@ -1,4 +1,4 @@
-from synthesis.client import LLMConfig, model_name_for_tier
+from mtrd.agents.client import LLMConfig, model_name_for_tier
 
 
 def test_model_name_for_tier_fast():
