@@ -9,29 +9,72 @@ from pydantic_ai.models.openai import OpenAIChatModel
 
 from mtrd.config import AppConfig
 from mtrd.lenses import get_lens_definition
-from mtrd.models import BriefSection, EvidenceItem, MarketBrief, SourceMeta
+from mtrd.models import BriefSection, EvidenceBlock, EvidenceItem, MarketBrief, SourceMeta
 from mtrd.rag.index import load_index
 
 
-def _build_context(nodes, max_chars: int) -> str:
-    chunks = []
+def _build_evidence_blocks(nodes, max_chars: int) -> List[EvidenceBlock]:
+    blocks: List[EvidenceBlock] = []
     total = 0
-    for idx, node in enumerate(nodes, start=1):
+    for node in nodes:
         meta = node.metadata or {}
-        title = meta.get("title", "Untitled")
-        url = meta.get("url", "")
-        snippet = node.get_text()
-        block = f"[Source {idx}] {title} {url}\n{snippet}\n"
-        if total + len(block) > max_chars:
-            remaining = max_chars - total
-            if remaining <= 0:
-                break
-            block = block[:remaining]
-        chunks.append(block)
-        total += len(block)
+        text = node.get_text()
+        remaining = max_chars - total
+        if remaining <= 0:
+            break
+        if len(text) > remaining:
+            text = text[:remaining]
+
+        source_id = meta.get("source_id") or getattr(node, "node_id", None) or "unknown"
+        blocks.append(
+            EvidenceBlock(
+                source_id=source_id,
+                title=meta.get("title", "Untitled"),
+                url=meta.get("url"),
+                content_hash=meta.get("content_hash", source_id),
+                text=text,
+                collected_at=meta.get("collected_at"),
+                published_at=meta.get("published_at"),
+                score=getattr(node, "score", None),
+                chunk_id=getattr(node, "node_id", None),
+                tier=meta.get("tier", "unverified"),
+            )
+        )
+        total += len(text)
         if total >= max_chars:
             break
-    return "\n".join(chunks).strip()
+    return blocks
+
+
+def _fmt_dt(value) -> str:
+    if not value:
+        return "unknown"
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _build_context(blocks: List[EvidenceBlock]) -> str:
+    segments = []
+    for block in blocks:
+        segments.append(
+            "\n".join(
+                [
+                    f"SOURCE_ID: {block.source_id}",
+                    f"CONTENT_HASH: {block.content_hash}",
+                    f"TITLE: {block.title}",
+                    f"URL: {block.url or 'unknown'}",
+                    f"TIER: {block.tier}",
+                    f"PUBLISHED: {_fmt_dt(block.published_at)}",
+                    f"COLLECTED: {_fmt_dt(block.collected_at)}",
+                    f"SCORE: {block.score if block.score is not None else 'unknown'}",
+                    "CONTENT:",
+                    block.text,
+                    "---",
+                ]
+            )
+        )
+    return "\n".join(segments).strip()
 
 
 def _sources_from_nodes(nodes) -> List[SourceMeta]:
@@ -214,7 +257,8 @@ def generate_brief(
     retriever = index.as_retriever(similarity_top_k=config.top_k)
     nodes = retriever.retrieve(topic)
 
-    context = _build_context(nodes, max_chars=config.context_max_chars)
+    evidence_blocks = _build_evidence_blocks(nodes, max_chars=config.context_max_chars)
+    context = _build_context(evidence_blocks)
     sources = _sources_from_nodes(nodes)
 
     lens_def = get_lens_definition(lens)
@@ -234,7 +278,12 @@ def generate_brief(
 
     system_prompt = (
         "You are an evidence-first market research analyst. "
-        "Only use the provided sources. If evidence is missing, state it as an assumption. "
+        "Only use the provided sources and evidence blocks. "
+        "Every claim must cite SOURCE_ID and CONTENT_HASH. "
+        "If two sources conflict, prioritize the one with the most recent PUBLISHED date; "
+        "if PUBLISHED is missing, use COLLECTED. "
+        "Highlight tiering differences (e.g., Tier 1 vs Tier 3) when relevant. "
+        "If evidence is missing, state it as an assumption. "
         "Return JSON only. Do not include any extra text."
     )
 
@@ -245,6 +294,7 @@ def generate_brief(
         "lens": lens,
         "lens_definition": lens_def,
         "context": context,
+        "evidence_blocks": [b.model_dump() for b in evidence_blocks],
         "now": datetime.utcnow().isoformat(),
     }
 
