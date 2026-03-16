@@ -1,35 +1,33 @@
-# A Multi-Agent Evidence Engine for Market Intelligence
-**AI research pipeline for audit‑ready briefs**
+# MTRD: Market-Trend Research Desk
+**A Multi-Agent RAG Pipeline for Cited Market Intelligence.**
 
-## Problem
-Market teams need fast competitive briefs, but source data is messy and hard to trust. Most tools return fluent summaries without a reliable audit trail.
+## What it is
+MTRD is a local-first AI engine that uses a **Librarian/Analyst agent orchestration** to turn messy documents into audit-ready briefs. It automates the research flow: ingesting PDFs, web pages, and RSS feeds, then generating reports where every claim is linked to a source.
 
-## Action
-Build a local-first pipeline that ingests raw documents, preserves lineage, retrieves the most relevant evidence, and generates a structured brief that always links back to sources.
+## Why i built this
+Most AI tools hallucinate or lose their sources. This tool uses **immutable SQLite snapshots** and **Pydantic contracts** to ensure that when the agents speak, the evidence is verifiable and hasn't been tampered with.
 
-## Solution
-MTRD turns fragmented documents into audit-ready briefs with citations, bounded context, and repeatable outputs.
+## Key Features
+* **Multi-Agent Flow:** Uses a "Librarian" for retrieval and an "Analyst" for synthesis to keep logic separated.
+* **Evidence-First RAG:** Maps data to a shared `EvidenceBlock` model so citations (Source ID + Hash) are preserved.
+* **Data Integrity:** SQLite triggers block updates to source snapshots, creating a permanent audit trail.
+* **Zero Cost:** Runs on local LLMs (**Ollama**) and local vector storage (**Chroma**).
 
-## What It Includes
-* **Ingestion:** txt/md/pdf, RSS, and web sources.
-* **Snapshot Store:** SQLite with content hashing; JSON/Markdown are exports only.
-* **Indexing + Retrieval:** Chroma + LlamaIndex, top‑k evidence with preserved metadata.
-* **Brief Generation:** Extractive‑only by default; optional structured synthesis by tier (fast vs standard).
-* **Governance:** Audit log, brief versioning, and diffing.
-* **UI:** Streamlit for end‑to‑end demo flow.
+## Tech Stack
+* **Orchestration:** LlamaIndex (Multi-Agent logic)
+* **Database:** SQLite & ChromaDB
+* **Data Validation:** Pydantic
+* **Environment:** Python (managed with `uv`)
+* **UI:** Streamlit
 
-## Run (Local)
+## Quick Start
 ```bash
-uv venv
-. .venv/bin/activate
-uv pip install -r requirements.txt
-PYTHONPATH=src python -m mtrd.cli ingest-files-cmd --path ./data/sources --db ./data/snapshots.db
-PYTHONPATH=src python -m mtrd.cli build-index-cmd --db ./data/snapshots.db --rebuild
-PYTHONPATH=src python -m mtrd.cli brief --topic "Mid-market CRM" --audience "Executive" --lens "Growth"
-streamlit run streamlit_app.py
-pytest -q
-```
-## Current Progress
-* **Vector Retrieval:** Scale Chroma/LlamaIndex across larger document libraries.
-* **Stakeholder Interface:** Expand the dashboard with filters and report sharing.
-* **Temporal Analysis:** Automated change reports to track market shifts over time.
+# Setup environment
+uv venv && . .venv/bin/activate && uv pip install -r requirements.txt
+
+# Ingest data and build index
+PYTHONPATH=src python -m mtrd.cli ingest-files-cmd --path ./data/sources
+PYTHONPATH=src python -m mtrd.cli build-index-cmd --rebuild
+
+# Generate a brief
+PYTHONPATH=src python -m mtrd.cli brief --topic "Market Trends"
