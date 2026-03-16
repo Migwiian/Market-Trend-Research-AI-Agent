@@ -36,6 +36,16 @@ def init_db(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE snapshots ADD COLUMN embedding_id TEXT;")
     except sqlite3.OperationalError:
         pass
+    # Enforce immutability: once inserted, snapshot rows are append-only.
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS snapshots_immutable
+        BEFORE UPDATE ON snapshots
+        BEGIN
+            SELECT RAISE(FAIL, 'snapshots are immutable');
+        END;
+        """
+    )
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS briefs (
@@ -77,15 +87,7 @@ def upsert_snapshot(conn: sqlite3.Connection, snap: SourceSnapshot) -> None:
             snapshot_id, content_hash, content_text, metadata_json, retrieved_at,
             source_type, url, stale_after_days, embedding_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(snapshot_id) DO UPDATE SET
-            content_hash=excluded.content_hash,
-            content_text=excluded.content_text,
-            metadata_json=excluded.metadata_json,
-            retrieved_at=excluded.retrieved_at,
-            source_type=excluded.source_type,
-            url=excluded.url,
-            stale_after_days=excluded.stale_after_days,
-            embedding_id=excluded.embedding_id;
+        ON CONFLICT(snapshot_id) DO NOTHING;
         """,
         (
             snap.snapshot_id,

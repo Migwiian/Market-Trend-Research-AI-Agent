@@ -17,6 +17,19 @@ class SourceMeta(BaseModel):
     tier: str = Field(default="unverified", description="verified | self-reported | unverified")
 
 
+class EvidenceBlock(BaseModel):
+    source_id: str
+    title: str
+    url: Optional[str] = None
+    content_hash: str
+    text: str
+    collected_at: datetime
+    published_at: Optional[datetime] = None
+    score: Optional[float] = None
+    chunk_id: Optional[str] = None
+    tier: str = Field(default="unverified", description="verified | self-reported | unverified")
+
+
 class EvidenceItem(BaseModel):
     claim: str
     source_ids: List[str]
